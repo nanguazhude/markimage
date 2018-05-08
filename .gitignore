@@ -1,0 +1,11 @@
+*.pro.user
+*.exp
+*.lib
+*.ilk
+*.pdb
+*.autosave
+*.stash
+*.o
+*.exe
+*.Debug
+*.Release
