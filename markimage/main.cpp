@@ -244,12 +244,25 @@ int main(int argc, char *argv[]) try {
 				varImage.save(&varBuffer, "png");
 				});
 
+			/*被标记的图片仅仅显示缩略图即可，不必太大...*/
+			{
+				constexpr const static int varMinSize = 1280;
+				if (varImageWidth > varMinSize) {
+					varImage = varImage.scaledToWidth(2048, Qt::SmoothTransformation);
+				}
+				if (varImageHeight > varMinSize) {
+					varImage = varImage.scaledToHeight(2048, Qt::SmoothTransformation);
+				}
+				varImageWidth = varImage.width();
+				varImageHeight = varImage.height();
+			}
+
 			{//QImage varMarkImage{ varImageWidth,varImageHeight,QImage::Format_Grayscale8 };
 				const auto varFontSize = std::max(1, std::min(varImageHeight, varImageWidth) / 3);
 				QPainter varPainter{ &varImage };
 				varPainter.setRenderHints(QPainter::HighQualityAntialiasing |
 					QPainter::SmoothPixmapTransform |
-					QPainter::TextAntialiasing|
+					QPainter::TextAntialiasing |
 					QPainter::Antialiasing);
 				{
 					auto varTextFont = varPainter.font();
@@ -289,6 +302,7 @@ int main(int argc, char *argv[]) try {
 				varBuffer.open(QBuffer::WriteOnly);
 				varImage.save(&varBuffer, "png");
 			}
+
 			/*cleare image data now*/
 			varImage = {};
 
