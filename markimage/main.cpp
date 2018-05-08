@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) try {
 			QGuiApplication Application(argc, argv);
 			const auto varImageFileName = QString::fromLocal8Bit(argv[1]);
 			QImage varImage{ varImageFileName };
-			//varImage = varImage.convertToFormat(QImage::Format_RGBA8888)/*重新整理数据格式*/;
+			
 			int varImageWidth;
 			int varImageHeight;
 			if ((varImageWidth = varImage.width()) < 1) {
@@ -237,8 +237,9 @@ int main(int argc, char *argv[]) try {
 				throw Throw{};
 			}
 
-			QByteArray varOrigin;
-			std::thread varThreadToSaveData([varOrigin = &varOrigin, varImage = varImage.copy()]{
+			QByteArray varOrigin; 
+			std::thread varThreadToSaveData([varOrigin = &varOrigin, varImage = varImage.copy()] () mutable {
+				varImage = varImage.convertToFormat(QImage::Format_RGBA8888)/*重新整理数据格式*/;
 				QBuffer varBuffer{ varOrigin };
 				varBuffer.open(QBuffer::WriteOnly);
 				varImage.save(&varBuffer, "png");
@@ -248,10 +249,10 @@ int main(int argc, char *argv[]) try {
 			{
 				constexpr const static int varMinSize = 1280;
 				if (varImageWidth > varMinSize) {
-					varImage = varImage.scaledToWidth(2048, Qt::SmoothTransformation);
+					varImage = varImage.scaledToWidth(varMinSize, Qt::SmoothTransformation);
 				}
 				if (varImageHeight > varMinSize) {
-					varImage = varImage.scaledToHeight(2048, Qt::SmoothTransformation);
+					varImage = varImage.scaledToHeight(varMinSize, Qt::SmoothTransformation);
 				}
 				varImageWidth = varImage.width();
 				varImageHeight = varImage.height();
