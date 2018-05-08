@@ -54,8 +54,8 @@ inline bool pass_jpg_image(std::ifstream &varImage, std::streamsize * varPos = n
 			/*get data length*/
 			std::int32_t varLength = -2;
 			{
-				const auto varPart0 = (0x00ff & varImage.get());
-				const auto varPart1 = (0x00ff & varImage.get());
+				const auto varPart0 = (varImage.get());
+				const auto varPart1 = (varImage.get());
 				varLength += (varPart0 << 8) | (varPart1);
 			}
 			if (varLength < 1) { throw Throw{}; }
@@ -70,11 +70,79 @@ catch (...) {
 	return false;
 }
 
+inline bool pass_png_image(std::ifstream &varImage, std::streamsize * varPos = nullptr) try {
+	if (varPos) { *varPos = 0; }
+	{
+		//89 50 4E 47 0D 0A 1A 0A
+		if (varImage.good()) {
+			if (0x0089 != varImage.get()) { throw Throw{}; }
+		}
+		else { throw Throw{}; }
+		if (varImage.good()) {
+			if (0x0050 != varImage.get()) { throw Throw{}; }
+		}
+		else { throw Throw{}; }
+		if (varImage.good()) {
+			if (0x004e != varImage.get()) { throw Throw{}; }
+		}
+		else { throw Throw{}; }
+		if (varImage.good()) {
+			if (0x0047 != varImage.get()) { throw Throw{}; }
+		}
+		else { throw Throw{}; }
+		if (varImage.good()) {
+			if (0x000D != varImage.get()) { throw Throw{}; }
+		}
+		else { throw Throw{}; }
+		if (varImage.good()) {
+			if (0x000A != varImage.get()) { throw Throw{}; }
+		}
+		else { throw Throw{}; }
+		if (varImage.good()) {
+			if (0x001A != varImage.get()) { throw Throw{}; }
+		}
+		else { throw Throw{}; }
+		if (varImage.good()) {
+			if (0x000A != varImage.get()) { throw Throw{}; }
+		}
+		else { throw Throw{}; }
+	}
+
+	bool varIsEndl = false;
+	while (varImage.good()) {
+		if (varIsEndl) { return true; }
+		std::uint32_t varLength = 4;
+		{
+			const auto varPart0 = (varImage.get());
+			const auto varPart1 = (varImage.get());
+			const auto varPart2 = (varImage.get());
+			const auto varPart3 = (varImage.get());
+			varLength += (varPart0 << 24) | (varPart1 << 16) | (varPart2 << 8) | (varPart1);
+		}
+		{
+			const auto varPart0 = (varImage.get());
+			const auto varPart1 = (varImage.get());
+			const auto varPart2 = (varImage.get());
+			const auto varPart3 = (varImage.get());
+			//IEND 
+			if ((varPart0 == 'I') && (varPart1 == 'E') && (varPart2 == 'N') && (varPart3 == 'D')) {
+				varIsEndl = true;
+			}
+		}
+		varImage.seekg(varLength, std::ios::cur);
+	}
+
+	return false;
+}
+catch (...) {
+	return false;
+}
+
 class MainState {
 public:
 	bool isMarked = false;
 	std::streamsize markedFileSize = 0;
-	enum class ImageType : unsigned char {
+	enum class ImageType : char {
 		JPG = 0,
 		PNG = 1,
 	};
@@ -95,7 +163,7 @@ int main(int argc, char *argv[]) try {
 			std::cout << "can not open file" << argv[1] << std::endl;
 			return -1;
 		}
-		varState->isMarked = pass_jpg_image(varImageFile, &(varState->markedFileSize));
+		varState->isMarked = pass_png_image(varImageFile, &(varState->markedFileSize));
 		if (varState->isMarked == false) { break; }
 		/*0x55, 0xaa 0x1f, 0x88
 		0 : jpg
@@ -138,6 +206,7 @@ int main(int argc, char *argv[]) try {
 		QGuiApplication Application(argc, argv);
 		const auto varImageFileName = QString::fromLocal8Bit(argv[1]);
 		QImage varImage{ varImageFileName };
+		varImage = varImage.convertToFormat(QImage::Format_RGBA8888)/*重新整理数据格式*/;
 		int varImageWidth;
 		int varImageHeight;
 		if ((varImageWidth = varImage.width()) < 1) {
@@ -148,10 +217,17 @@ int main(int argc, char *argv[]) try {
 			std::cout << "the image is null" << std::endl;
 			throw Throw{};
 		}
-		QImage varMarkImage{ varImageWidth,varImageHeight,QImage::Format_Grayscale8 };
-		auto varFontSize = std::max(1, std::min(varImageHeight, varImageWidth) / 3);
+
+		QByteArray varOrigin;
 		{
-			QPainter varPainter{ &varMarkImage };
+			QBuffer varBuffer{ &varOrigin };
+			varBuffer.open(QBuffer::WriteOnly);
+			varImage.save(&varBuffer, "png");
+		}
+
+		{//QImage varMarkImage{ varImageWidth,varImageHeight,QImage::Format_Grayscale8 };
+			const auto varFontSize = std::max(1, std::min(varImageHeight, varImageWidth) / 3);
+			QPainter varPainter{ &varImage };
 			{
 				auto varTextFont = varPainter.font();
 				varTextFont.setPixelSize(varFontSize);
@@ -164,7 +240,32 @@ int main(int argc, char *argv[]) try {
 				std::max(0, (varImageHeight - varFontSize) / 2) + varFontSize),
 				varMarkString);
 		}
-		
+
+		QByteArray varMarked;
+
+		{
+			QBuffer varBuffer{ &varMarked };
+			varBuffer.open(QBuffer::WriteOnly);
+			varImage.save(&varBuffer, "png");
+		}
+
+		std::ofstream varOutStream(argv[0], std::ios::binary);
+		if (varOutStream.is_open() == false) {
+			throw Throw{};
+		}
+		/*write marked data*/
+		varOutStream.write(varMarked.data(), varMarked.size());
+		/*write boom*/
+		constexpr static const char varBom[] = {
+			static_cast<char>(0x55U),
+			static_cast<char>(0xaaU),
+			static_cast<char>(0x1fU),
+			static_cast<char>(0x88U),
+			static_cast<char>(MainState::ImageType::PNG) };
+		varOutStream.write(varBom, std::size(varBom));
+		/*write origin data*/
+		varOutStream.write(varOrigin.data(), varOrigin.size());
+
 	}
 
 }
