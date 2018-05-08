@@ -256,6 +256,7 @@ int main(int argc, char *argv[]) try {
 				}
 				varImageWidth = varImage.width();
 				varImageHeight = varImage.height();
+				varImage = varImage.convertToFormat(QImage::Format_RGB888);
 			}
 
 			{//QImage varMarkImage{ varImageWidth,varImageHeight,QImage::Format_Grayscale8 };
