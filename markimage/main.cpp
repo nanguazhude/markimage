@@ -2,6 +2,7 @@
 #include <QtCore/QtCore>
 #include <QtGui/QtGui>
 
+#include <vector>
 #include <memory>
 #include <fstream>
 #include <iostream>
@@ -110,14 +111,17 @@ inline bool pass_png_image(std::ifstream &varImage, std::streamsize * varPos = n
 
 	bool varIsEndl = false;
 	while (varImage.good()) {
-		if (varIsEndl) { return true; }
+		if (varIsEndl) {
+			*varPos = varImage.tellg();
+			return true;
+		}
 		std::uint32_t varLength = 4;
 		{
 			const auto varPart0 = (varImage.get());
 			const auto varPart1 = (varImage.get());
 			const auto varPart2 = (varImage.get());
 			const auto varPart3 = (varImage.get());
-			varLength += (varPart0 << 24) | (varPart1 << 16) | (varPart2 << 8) | (varPart1);
+			varLength += (varPart0 << 24) | (varPart1 << 16) | (varPart2 << 8) | (varPart3);
 		}
 		{
 			const auto varPart0 = (varImage.get());
@@ -181,20 +185,26 @@ int main(int argc, char *argv[]) try {
 	using ImageType = MainState::ImageType;
 	if (varState->isMarked) {
 		/* we just remove market , 并重命名 */
+		std::streamsize varHaveRead = 0;
 		{
 			std::fstream varImageFile(argv[1], std::ios::binary | std::ios::in | std::ios::out);
-			varImageFile.seekg(varState->markedFileSize + 4, std::ios::beg);
-			const auto varImageType = static_cast<ImageType>(varImageFile.get());
+			const auto varReadBasic = varState->markedFileSize + 5;
+			constexpr const static std::size_t varTmpBufferSize = 4;
+			std::vector<char> varTmpBuffer(varTmpBufferSize, '1');
 			for (;;) {
-				const auto varEle = varImageFile.get();
-				if (false == varImageFile.good()) { break; }
-				varImageFile.put(varEle);
+				varImageFile.seekg(varHaveRead + varReadBasic);
+				varImageFile.read(varTmpBuffer.data(), varTmpBufferSize);
+				const auto varReadSize = varImageFile.gcount();
+				if (varReadSize < 1) { break; }
+				varImageFile.seekp(varHaveRead);
+				varHaveRead += varReadSize;
+				varImageFile.write(varTmpBuffer.data(), varReadSize);
 			}
 		}
 		namespace fs = std::filesystem;
 		fs::path varImagePath{ argv[1] };
 		fs::path varImagePathNew = varImagePath;
-		fs::resize_file(varImagePath, varState->markedFileSize)/*remove the data do not used*/;
+		fs::resize_file(varImagePath, varHaveRead)/*remove the data do not used*/;
 		/*rename the file*/
 		switch (varState->imageType) {
 		case MainState::ImageType::JPG: { varImagePathNew.replace_extension("jpg"); }break;
@@ -203,69 +213,98 @@ int main(int argc, char *argv[]) try {
 		fs::rename(varImagePath, varImagePathNew);
 	}
 	else {
-		QGuiApplication Application(argc, argv);
-		const auto varImageFileName = QString::fromLocal8Bit(argv[1]);
-		QImage varImage{ varImageFileName };
-		varImage = varImage.convertToFormat(QImage::Format_RGBA8888)/*重新整理数据格式*/;
-		int varImageWidth;
-		int varImageHeight;
-		if ((varImageWidth = varImage.width()) < 1) {
-			std::cout << "the image is null" << std::endl;
-			throw Throw{};
-		}
-		if ((varImageHeight = varImage.height()) < 1) {
-			std::cout << "the image is null" << std::endl;
-			throw Throw{};
-		}
-
-		QByteArray varOrigin;
 		{
-			QBuffer varBuffer{ &varOrigin };
-			varBuffer.open(QBuffer::WriteOnly);
-			varImage.save(&varBuffer, "png");
-		}
-
-		{//QImage varMarkImage{ varImageWidth,varImageHeight,QImage::Format_Grayscale8 };
-			const auto varFontSize = std::max(1, std::min(varImageHeight, varImageWidth) / 3);
-			QPainter varPainter{ &varImage };
-			{
-				auto varTextFont = varPainter.font();
-				varTextFont.setPixelSize(varFontSize);
-				varPainter.setFont(varTextFont);
+			QGuiApplication Application(argc, argv);
+			const auto varImageFileName = QString::fromLocal8Bit(argv[1]);
+			QImage varImage{ varImageFileName };
+			//varImage = varImage.convertToFormat(QImage::Format_RGBA8888)/*重新整理数据格式*/;
+			int varImageWidth;
+			int varImageHeight;
+			if ((varImageWidth = varImage.width()) < 1) {
+				std::cout << "the image is null" << std::endl;
+				throw Throw{};
 			}
-			const static auto varMarkString = QString::fromUtf8(u8R"(作废)");
-			const auto varFontMetrics = varPainter.fontMetrics();
-			varPainter.drawText(QPoint(
-				std::max(0, (varImageWidth - varFontMetrics.width(varMarkString)) / 2),
-				std::max(0, (varImageHeight - varFontSize) / 2) + varFontSize),
-				varMarkString);
+			if ((varImageHeight = varImage.height()) < 1) {
+				std::cout << "the image is null" << std::endl;
+				throw Throw{};
+			}
+
+			QByteArray varOrigin;
+			{
+				QBuffer varBuffer{ &varOrigin };
+				varBuffer.open(QBuffer::WriteOnly);
+				varImage.save(&varBuffer, "png");
+			}
+
+			{//QImage varMarkImage{ varImageWidth,varImageHeight,QImage::Format_Grayscale8 };
+				const auto varFontSize = std::max(1, std::min(varImageHeight, varImageWidth) / 3);
+				QPainter varPainter{ &varImage };
+				{
+					auto varTextFont = varPainter.font();
+					varTextFont.setPixelSize(varFontSize);
+					varPainter.setFont(varTextFont);
+				}
+				const static auto varMarkString = QString::fromUtf8(u8R"(作废)");
+				const auto varFontMetrics = varPainter.fontMetrics();
+				{
+					auto varPen = varPainter.pen();
+					varPen.setColor(QColor(205, 30, 30, 99));
+					varPainter.setPen(varPen);
+				}
+				auto varYHeight = std::max(0, (varImageHeight - varFontSize) / 2) + varFontSize;
+				const auto varXWidth = std::max(0, (varImageWidth - varFontMetrics.width(varMarkString)) / 2);
+				varPainter.drawText(QPoint(varXWidth, varYHeight),
+					varMarkString);
+				const auto varFontHeight = std::max(2, varFontSize / 4);
+				{
+					auto varTextFont = varPainter.font();
+					varTextFont.setPixelSize(varFontHeight);
+					varPainter.setFont(varTextFont);
+				}
+				{
+					auto varPen = varPainter.pen();
+					varPen.setColor(QColor(40, 50, 60, 220));
+					varPainter.setPen(varPen);
+				}
+				varPainter.drawText(QPoint(varXWidth, 1 + varFontHeight + varYHeight),
+					QDateTime::currentDateTime().toString(QStringLiteral("yyyy/MM/dd")));
+			}
+
+			QByteArray varMarked;
+
+			{
+				QBuffer varBuffer{ &varMarked };
+				varBuffer.open(QBuffer::WriteOnly);
+				varImage.save(&varBuffer, "png");
+			}
+			/*cleare image data now*/
+			varImage = {};
+
+			std::ofstream varOutStream(argv[1], std::ios::binary);
+			if (varOutStream.is_open() == false) {
+				throw Throw{};
+			}
+			/*write marked data*/
+			varOutStream.write(std::as_const(varMarked).data(), varMarked.size());
+			varMarked = {};
+			/*write boom*/
+			constexpr static const char varBom[] = {
+				static_cast<char>(0x55U),
+				static_cast<char>(0xaaU),
+				static_cast<char>(0x1fU),
+				static_cast<char>(0x88U),
+				static_cast<char>(MainState::ImageType::PNG) };
+			varOutStream.write(varBom, std::size(varBom));
+			/*write origin data*/
+			varOutStream.write(std::as_const(varOrigin).data(), varOrigin.size());
+			varOrigin = {};
 		}
-
-		QByteArray varMarked;
-
-		{
-			QBuffer varBuffer{ &varMarked };
-			varBuffer.open(QBuffer::WriteOnly);
-			varImage.save(&varBuffer, "png");
+		namespace fs = std::filesystem;
+		fs::path varFilePath{ argv[1] };
+		if (varFilePath.extension() != "png") {
+			varFilePath.replace_extension("png");
+			fs::rename(argv[1], varFilePath);
 		}
-
-		std::ofstream varOutStream(argv[0], std::ios::binary);
-		if (varOutStream.is_open() == false) {
-			throw Throw{};
-		}
-		/*write marked data*/
-		varOutStream.write(varMarked.data(), varMarked.size());
-		/*write boom*/
-		constexpr static const char varBom[] = {
-			static_cast<char>(0x55U),
-			static_cast<char>(0xaaU),
-			static_cast<char>(0x1fU),
-			static_cast<char>(0x88U),
-			static_cast<char>(MainState::ImageType::PNG) };
-		varOutStream.write(varBom, std::size(varBom));
-		/*write origin data*/
-		varOutStream.write(varOrigin.data(), varOrigin.size());
-
 	}
 
 }
