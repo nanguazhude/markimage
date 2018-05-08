@@ -8,6 +8,9 @@
 #include <iostream>
 #include <filesystem>
 
+#include <string_view>
+using namespace std::string_view_literals;
+
 class Throw {};
 
 inline bool pass_jpg_image(std::ifstream &varImage, std::streamsize * varPos = nullptr)try {
@@ -156,7 +159,7 @@ public:
 int main(int argc, char *argv[]) try {
 
 	if (argc < 2) {
-		std::cout << "do not have filename" << std::endl;
+		std::cout << "do not have filename"sv << std::endl;
 		return -1;
 	}
 
@@ -164,7 +167,7 @@ int main(int argc, char *argv[]) try {
 	do try {
 		std::ifstream varImageFile(argv[1], std::ios::binary);
 		if (varImageFile.is_open() == false) {
-			std::cout << "can not open file" << argv[1] << std::endl;
+			std::cout << "can not open file"sv << argv[1] << std::endl;
 			return -1;
 		}
 		varState->isMarked = pass_png_image(varImageFile, &(varState->markedFileSize));
@@ -189,16 +192,20 @@ int main(int argc, char *argv[]) try {
 		{
 			std::fstream varImageFile(argv[1], std::ios::binary | std::ios::in | std::ios::out);
 			const auto varReadBasic = varState->markedFileSize + 5;
-			constexpr const static std::size_t varTmpBufferSize = 4;
+			constexpr const static std::size_t varTmpBufferSize = 1024 ;
 			std::vector<char> varTmpBuffer(varTmpBufferSize, '1');
 			for (;;) {
-				varImageFile.seekg(varHaveRead + varReadBasic);
+				varImageFile.seekg(varHaveRead + varReadBasic, std::ios::beg);
 				varImageFile.read(varTmpBuffer.data(), varTmpBufferSize);
 				const auto varReadSize = varImageFile.gcount();
-				if (varReadSize < 1) { break; }
-				varImageFile.seekp(varHaveRead);
+				if (varReadSize < 1) { 
+					break; 
+				}
+				varImageFile.clear();
+				varImageFile.seekp(varHaveRead,std::ios::beg);
 				varHaveRead += varReadSize;
-				varImageFile.write(varTmpBuffer.data(), varReadSize);
+				varImageFile.write(std::as_const(varTmpBuffer).data(), varReadSize);
+				varImageFile.flush();
 			}
 		}
 		namespace fs = std::filesystem;
@@ -207,8 +214,8 @@ int main(int argc, char *argv[]) try {
 		fs::resize_file(varImagePath, varHaveRead)/*remove the data do not used*/;
 		/*rename the file*/
 		switch (varState->imageType) {
-		case MainState::ImageType::JPG: { varImagePathNew.replace_extension("jpg"); }break;
-		case MainState::ImageType::PNG: { varImagePathNew.replace_extension("png"); }break;
+		case MainState::ImageType::JPG: { varImagePathNew.replace_extension("jpg"sv); }break;
+		case MainState::ImageType::PNG: { varImagePathNew.replace_extension("png"sv); }break;
 		}
 		fs::rename(varImagePath, varImagePathNew);
 	}
@@ -221,11 +228,11 @@ int main(int argc, char *argv[]) try {
 			int varImageWidth;
 			int varImageHeight;
 			if ((varImageWidth = varImage.width()) < 1) {
-				std::cout << "the image is null" << std::endl;
+				std::cout << "the image is null"sv << std::endl;
 				throw Throw{};
 			}
 			if ((varImageHeight = varImage.height()) < 1) {
-				std::cout << "the image is null" << std::endl;
+				std::cout << "the image is null"sv << std::endl;
 				throw Throw{};
 			}
 
@@ -301,15 +308,15 @@ int main(int argc, char *argv[]) try {
 		}
 		namespace fs = std::filesystem;
 		fs::path varFilePath{ argv[1] };
-		if (varFilePath.extension() != "png") {
-			varFilePath.replace_extension("png");
+		if (varFilePath.extension() != "png"sv) {
+			varFilePath.replace_extension("png"sv);
 			fs::rename(argv[1], varFilePath);
-		}
+		} 
 	}
 
 }
 catch (...) {
-	std::cout << "exception" << std::endl;
+	std::cout << "exception"sv << std::endl;
 	return -1;
 }
 
