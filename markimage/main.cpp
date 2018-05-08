@@ -3,6 +3,7 @@
 #include <QtGui/QtGui>
 
 #include <vector>
+#include <thread>
 #include <memory>
 #include <fstream>
 #include <iostream>
@@ -237,15 +238,19 @@ int main(int argc, char *argv[]) try {
 			}
 
 			QByteArray varOrigin;
-			{
-				QBuffer varBuffer{ &varOrigin };
+			std::thread varThreadToSaveData([varOrigin = &varOrigin, varImage = varImage.copy()]{
+				QBuffer varBuffer{ varOrigin };
 				varBuffer.open(QBuffer::WriteOnly);
 				varImage.save(&varBuffer, "png");
-			}
+				});
 
 			{//QImage varMarkImage{ varImageWidth,varImageHeight,QImage::Format_Grayscale8 };
 				const auto varFontSize = std::max(1, std::min(varImageHeight, varImageWidth) / 3);
 				QPainter varPainter{ &varImage };
+				varPainter.setRenderHints(QPainter::HighQualityAntialiasing |
+					QPainter::SmoothPixmapTransform |
+					QPainter::TextAntialiasing|
+					QPainter::Antialiasing);
 				{
 					auto varTextFont = varPainter.font();
 					varTextFont.setPixelSize(varFontSize);
@@ -303,6 +308,7 @@ int main(int argc, char *argv[]) try {
 				static_cast<char>(MainState::ImageType::PNG) };
 			varOutStream.write(varBom, std::size(varBom));
 			/*write origin data*/
+			if (varThreadToSaveData.joinable()) { varThreadToSaveData.join(); }
 			varOutStream.write(std::as_const(varOrigin).data(), varOrigin.size());
 			varOrigin = {};
 		}
