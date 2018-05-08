@@ -192,17 +192,17 @@ int main(int argc, char *argv[]) try {
 		{
 			std::fstream varImageFile(argv[1], std::ios::binary | std::ios::in | std::ios::out);
 			const auto varReadBasic = varState->markedFileSize + 5;
-			constexpr const static std::size_t varTmpBufferSize = 1024 ;
+			constexpr const static std::size_t varTmpBufferSize = 1024;
 			std::vector<char> varTmpBuffer(varTmpBufferSize, '1');
 			for (;;) {
 				varImageFile.seekg(varHaveRead + varReadBasic, std::ios::beg);
 				varImageFile.read(varTmpBuffer.data(), varTmpBufferSize);
 				const auto varReadSize = varImageFile.gcount();
-				if (varReadSize < 1) { 
-					break; 
+				if (varReadSize < 1) {
+					break;
 				}
 				varImageFile.clear();
-				varImageFile.seekp(varHaveRead,std::ios::beg);
+				varImageFile.seekp(varHaveRead, std::ios::beg);
 				varHaveRead += varReadSize;
 				varImageFile.write(std::as_const(varTmpBuffer).data(), varReadSize);
 				varImageFile.flush();
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) try {
 		if (varFilePath.extension() != "png"sv) {
 			varFilePath.replace_extension("png"sv);
 			fs::rename(argv[1], varFilePath);
-		} 
+		}
 	}
 
 }
