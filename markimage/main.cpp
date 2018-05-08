@@ -1,4 +1,4 @@
-﻿
+﻿/*适用于小文件，文件太大会爆内存*/
 #include <QtCore/QtCore>
 #include <QtGui/QtGui>
 
