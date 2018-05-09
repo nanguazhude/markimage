@@ -289,7 +289,7 @@ extern int _p_main(int argc, char *argv[]) try {
 				const auto varXWidth = std::max(0, (varImageWidth - varFontMetrics.width(varMarkString)) / 2);
 				varPainter.drawText(QPoint(varXWidth, varYHeight),
 					varMarkString);
-				const auto varFontHeight = std::max(2, varFontSize / 4);
+				const auto varFontHeight = std::max(2, varFontSize / 6);
 				{
 					auto varTextFont = varPainter.font();
 					varTextFont.setPixelSize(varFontHeight);
@@ -297,7 +297,7 @@ extern int _p_main(int argc, char *argv[]) try {
 				}
 				{
 					auto varPen = varPainter.pen();
-					varPen.setColor(QColor(40, 50, 60, 220));
+					varPen.setColor(QColor(40, 50, 60, 120));
 					varPainter.setPen(varPen);
 				}
 				varPainter.drawText(QPoint(varXWidth, 1 + varFontHeight + varYHeight),
