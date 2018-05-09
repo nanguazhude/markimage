@@ -1,5 +1,6 @@
 ﻿extern int _p_main(int argc, char *argv[]);
 
+#include <thread>
 #include <QtWidgets/QtWidgets>
 
 class CWidget : public QWidget{
@@ -32,9 +33,14 @@ public:
 		const auto varFileName__ = varDir.absoluteFilePath( varFileName_ );
 		auto varFileName = varFileName__.toLocal8Bit();
 		varFileName.push_back(char(0));
-		auto varData = varFileName.begin();
-		char * argv[2] = { varData ,varData };
-		_p_main(2,argv);
+		std::thread _run_this_([varFileName]() {
+			auto varData = varFileName.begin();
+			char * argv[2] = { const_cast<char*>(varData) ,
+				const_cast<char*>(varData) };
+			_p_main(2, argv);
+		});
+		_run_this_.detach();
+
 	}
 
 	void select_() {
