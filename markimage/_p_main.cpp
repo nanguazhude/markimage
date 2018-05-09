@@ -175,6 +175,7 @@ extern int _p_main(int argc, char *argv[]) try {
 			std::cout << "can not open file"sv << argv[1] << std::endl;
 			return -1;
 		}
+		varImageFile.sync_with_stdio(false);
 		varState->isMarked = pass_png_image(varImageFile, &(varState->markedFileSize));
 		if (varState->isMarked == false) { break; }
 		/*0x55, 0xaa 0x1f, 0x88
@@ -196,6 +197,7 @@ extern int _p_main(int argc, char *argv[]) try {
 		std::streamsize varHaveRead = 0;
 		{
 			std::fstream varImageFile(argv[1], std::ios::binary | std::ios::in | std::ios::out);
+			varImageFile.sync_with_stdio(false);
 			const auto varReadBasic = varState->markedFileSize + 5;
 			constexpr const static std::size_t varTmpBufferSize = 1024;
 			std::vector<char> varTmpBuffer(varTmpBufferSize, '1');
@@ -263,6 +265,14 @@ extern int _p_main(int argc, char *argv[]) try {
 				}
 				varImageWidth = varImage.width();
 				varImageHeight = varImage.height();
+				if (varImageWidth > varMinSize) {
+					varImage = varImage.scaledToWidth(varMinSize, Qt::SmoothTransformation);
+				}
+				if (varImageHeight > varMinSize) {
+					varImage = varImage.scaledToHeight(varMinSize, Qt::SmoothTransformation);
+				}
+				varImageWidth = varImage.width();
+				varImageHeight = varImage.height();
 				varImage = varImage.convertToFormat(QImage::Format_RGB888);
 			}
 
@@ -319,6 +329,7 @@ extern int _p_main(int argc, char *argv[]) try {
 			if (varOutStream.is_open() == false) {
 				throw Throw{};
 			}
+			varOutStream.sync_with_stdio(false);
 			/*write marked data*/
 			varOutStream.write(std::as_const(varMarked).data(), varMarked.size());
 			varMarked = {};
