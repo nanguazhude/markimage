@@ -226,7 +226,10 @@ extern int _p_main(int argc, char *argv[]) try {
 	}
 	else {
 		{
+#ifndef QT_WIDGETS_LIB
 			QGuiApplication Application(argc, argv);
+#endif // !QT_WIDGETS
+
 			const auto varImageFileName = QString::fromLocal8Bit(argv[1]);
 			QImage varImage{ varImageFileName };
 			
